@@ -255,7 +255,9 @@ def get_key(
 
     key_known = seq in CURTSIES_NAMES or seq in CURSES_NAMES or decodable(seq, encoding)
 
-    if seq in KEYMAP_PREFIXES or could_be_unfinished_char(seq, encoding):
+    if full and key_known:
+        return _key_name(seq, encoding)
+    elif seq in KEYMAP_PREFIXES or could_be_unfinished_char(seq, encoding):
         return None  # need more input to make up a full keypress
     elif key_known:
         return _key_name(seq, encoding)

@@ -167,7 +167,6 @@ class KeyInput(ContextManager["KeyInput"]):
         def find_key() -> Optional[str]:
             """Returns keypress identified by adding unprocessed bytes or None"""
             current_bytes = []
-            # print(self.unprocessed_bytes)
             while self.unprocessed_bytes:
                 current_bytes.append(self.unprocessed_bytes.pop(0))
                 e = get_key(
@@ -177,6 +176,7 @@ class KeyInput(ContextManager["KeyInput"]):
                 )
                 if e is not None:
                     return e
+            print(current_bytes)
             if current_bytes:  # incomplete keys shouldn't happen
                 raise ValueError("Couldn't identify key sequence: %r" % current_bytes)
             return None
