@@ -103,20 +103,9 @@ class KeyInput(ContextManager["KeyInput"]):
                 os.close(self.wakeup_write_fd)
         termios.tcsetattr(self.in_stream, termios.TCSANOW, self.original_stty)
 
-    def __iter__(self) -> "KeyInput":
-        return self
-
-    def __next__(self):
+    def get_input(self):
         return self.send(None)
-
-    def unget_bytes(self, string: bytes) -> None:
-        """Adds bytes to be internal buffer to be read
-
-        This method is for reporting bytes from an in_stream read
-        not initiated by this KeyInput object"""
-
-        self.unprocessed_bytes.extend(string[i : i + 1] for i in range(len(string)))
-
+    
     def _wait_for_read_ready_or_timeout(self,timeout):
         """Returns tuple of whether stdin is ready to read and an event.
 
@@ -176,7 +165,6 @@ class KeyInput(ContextManager["KeyInput"]):
                 )
                 if e is not None:
                     return e
-            print(current_bytes)
             if current_bytes:  # incomplete keys shouldn't happen
                 raise ValueError("Couldn't identify key sequence: %r" % current_bytes)
             return None

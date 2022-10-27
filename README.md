@@ -13,9 +13,15 @@ from keyinput import KeyInput
 
 def main():
     with KeyInput() as input_generator:
-        for e in input_generator:
-            print(repr(e))
+        while True:
+            print(repr(input_generator.get_input()))
 
 if __name__ == '__main__':
     main()
 ```
+
+## Reference
+
+https://stackoverflow.com/questions/22417323/how-do-enter-and-exit-work-in-python-decorator-classes
+
+https://stackoverflow.com/questions/1112343/how-do-i-capture-sigint-in-python

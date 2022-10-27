@@ -157,6 +157,10 @@ for i in range(0x00, 0x1B):  # Overwrite the control keys with better labels
 CURTSIES_NAMES.update(_CURTSIES_NAMES)
 
 CURSES_NAMES = {
+    b'\x1b': "ESC",
+    b'\t': "TAB",
+    b'\x7f': "BACKSPACE",
+    b'\n': "ENTER",
     b"\x1bOP": "KEY_F(1)",
     b"\x1bOQ": "KEY_F(2)",
     b"\x1bOR": "KEY_F(3)",
@@ -274,6 +278,7 @@ def _key_name(seq: bytes, encoding: str) -> str:
 
     # Otherwise, there's no special curses name for this
     try:
+        
         # for normal decodable text or a special curtsies sequence with bytes that can be decoded
         return seq.decode(encoding)
     except UnicodeDecodeError:
