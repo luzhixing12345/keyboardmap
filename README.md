@@ -21,19 +21,20 @@ def main():
         while True:
             ch = k.get_input()
             if (ch == 'ESC'): break
-            print("You pressed "+ch)
+            print("You pressed "+repr(ch))
 
 if __name__ == '__main__':
     main()
 ```
 
-if you want to control or use other keymaps or rename it, you should change line7 to `ch = repr(k.get_input()` to see what specific `ch` is and modify `CURSES_NAMES` in [keymap.py](keyboardhandler/keymap.py)
+if you want to control or use other keymaps or rename it, you should check what specific `ch` is and modify `CURSES_NAMES` in [keymap.py](keyboardhandler/keymap.py)
 
 for example:
 
 ```python
 CURSES_NAMES = {
     b' ': 'SPACE', # change ' ' to SPACE
+    b'\x01': "CTRL_A", # record ctrl+a
     b'\x1b': "ESC",
     b'\t': "TAB",
     b'\x7f': "BACKSPACE",

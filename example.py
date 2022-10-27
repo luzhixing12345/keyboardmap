@@ -7,7 +7,7 @@ def main():
         while True:
             ch = k.get_input()
             if (ch == 'ESC'): break
-            print("You pressed "+ch)
+            print("You pressed "+repr(ch))
 
 if __name__ == '__main__':
     main()
