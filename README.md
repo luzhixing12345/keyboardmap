@@ -1,5 +1,8 @@
 # keyboardmap
 
+![Linux](https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black)
+![python](https://img.shields.io/badge/Python-FFD43B?style=for-the-badge&logo=python&logoColor=blue)
+
 non-blocking keyboard input map
 
 ## Statement Before View Code
@@ -21,13 +24,13 @@ def main():
         while True:
             ch = k.get_input()
             if (ch == 'ESC'): break
-            print("You pressed "+repr(ch))
+            print("You pressed "+ch)
 
 if __name__ == '__main__':
     main()
 ```
 
-if you want to control or use other keymaps or rename it, you should check what specific `ch` is and modify `CURSES_NAMES` and `_CURTSIES_NAMES` in [keymap.py](keyboardhandler/keymap.py), and `get_key()` will use this dict for keymap
+if you want to control or use other keymaps or rename it, you should change line7 to `ch = repr(k.get_input()` to see what specific `ch` is and modify `CURSES_NAMES` in [keymap.py](keyboardhandler/keymap.py)
 
 for example:
 
