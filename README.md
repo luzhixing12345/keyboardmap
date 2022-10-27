@@ -27,14 +27,13 @@ if __name__ == '__main__':
     main()
 ```
 
-if you want to control or use other keymaps or rename it, you should check what specific `ch` is and modify `CURSES_NAMES` in [keymap.py](keyboardhandler/keymap.py)
+if you want to control or use other keymaps or rename it, you should check what specific `ch` is and modify `CURSES_NAMES` and `_CURTSIES_NAMES` in [keymap.py](keyboardhandler/keymap.py), and `get_key()` will use this dict for keymap
 
 for example:
 
 ```python
 CURSES_NAMES = {
     b' ': 'SPACE', # change ' ' to SPACE
-    b'\x01': "CTRL_A", # record ctrl+a
     b'\x1b': "ESC",
     b'\t': "TAB",
     b'\x7f': "BACKSPACE",

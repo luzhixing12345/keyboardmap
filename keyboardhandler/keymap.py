@@ -275,7 +275,8 @@ def _key_name(seq: bytes, encoding: str) -> str:
     # may not be here (and still not decodable) curses names incomplete
     if seq in CURSES_NAMES:
         return CURSES_NAMES[seq]
-
+    if seq in CURTSIES_NAMES:
+        return CURTSIES_NAMES[seq]
     # Otherwise, there's no special curses name for this
     try:
         
