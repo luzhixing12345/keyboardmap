@@ -28,7 +28,7 @@ from typing import (
 READ_SIZE = 1024
 
 from types import TracebackType, FrameType
-from keymap import get_key
+from .keymap import get_key
 
 def is_main_thread() -> bool:
     return threading.current_thread() == threading.main_thread()

@@ -8,16 +8,38 @@ The code in this repo is **NOT CREATED BY MYSELF**, which most comes from [curti
 
 ## Usage
 
+clone the code and `keyboardhandler` folder is what you need
+
+example run as
+
 ```python
-from keyinput import KeyInput
+from keyboardhandler.keyinput import KeyInput
 
 def main():
-    with KeyInput() as input_generator:
+    keyboard = KeyInput()
+    with keyboard as k:
         while True:
-            print(repr(input_generator.get_input()))
+            ch = k.get_input()
+            if (ch == 'ESC'): break
+            print("You pressed "+ch)
 
 if __name__ == '__main__':
     main()
+```
+
+if you want to control or use other keymaps or rename it, you should change line7 to `ch = repr(k.get_input()` to see what specific `ch` is and modify `CURSES_NAMES` in [keymap.py](keyboardhandler/keymap.py)
+
+for example:
+
+```python
+CURSES_NAMES = {
+    b' ': 'SPACE', # change ' ' to SPACE
+    b'\x1b': "ESC",
+    b'\t': "TAB",
+    b'\x7f': "BACKSPACE",
+    b'\n': "ENTER",
+    ...
+}
 ```
 
 ## Reference

@@ -1,10 +1,13 @@
 
-from keyinput import KeyInput
+from keyboardhandler.keyinput import KeyInput
 
 def main():
-    with KeyInput() as input_generator:
+    keyboard = KeyInput()
+    with keyboard as k:
         while True:
-            print(repr(input_generator.get_input()))
+            ch = k.get_input()
+            if (ch == 'ESC'): break
+            print("You pressed "+ch)
 
 if __name__ == '__main__':
     main()
