@@ -30,13 +30,13 @@ if __name__ == '__main__':
     main()
 ```
 
-if you want to control or use other keymaps or rename it, you should change line7 to `ch = repr(k.get_input()` to see what specific `ch` is and modify `CURSES_NAMES` in [keymap.py](keyboardhandler/keymap.py)
+if you want to control or use other keymaps or rename it, you should check what specific `ch` is and modify `CURSES_NAMES` or `_CURTSIES_NAMES` in [keymap.py](keyboardhandler/keymap.py) to create a new key-value in dict
 
 for example:
 
 ```python
 CURSES_NAMES = {
-    b' ': 'SPACE', # change ' ' to SPACE
+    b' ': 'space', # change ' ' to SPACE
     b'\x1b': "ESC",
     b'\t': "TAB",
     b'\x7f': "BACKSPACE",
@@ -44,6 +44,8 @@ CURSES_NAMES = {
     ...
 }
 ```
+
+CURSES_NAMES has higher priority than _CURTSIES_NAMES
 
 ## Reference
 
