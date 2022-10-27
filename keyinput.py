@@ -1,6 +1,5 @@
 
 import locale
-import logging
 import os
 import select
 import signal
@@ -9,6 +8,9 @@ import termios
 import threading
 import time
 import tty
+import termios
+import fcntl
+import os
 
 from typing import (
     Callable,
@@ -21,12 +23,42 @@ from typing import (
     cast,
     Tuple,
     Any,
+    IO
 )
+READ_SIZE = 1024
+
 from types import TracebackType, FrameType
+from keymap import get_key
+
+def is_main_thread() -> bool:
+    return threading.current_thread() == threading.main_thread()
+
+def getpreferredencoding() -> str:
+    return locale.getpreferredencoding() or sys.getdefaultencoding()
+
+class Nonblocking(ContextManager):
+    """
+    A context manager for making an KeyInput stream nonblocking.
+    """
+
+    def __init__(self, stream: IO) -> None:
+        self.stream = stream
+        self.fd = self.stream.fileno()
+
+    def __enter__(self) -> None:
+        self.orig_fl = fcntl.fcntl(self.fd, fcntl.F_GETFL)
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl | os.O_NONBLOCK)
+
+    def __exit__(
+        self,
+        type: Optional[Type[BaseException]] = None,
+        value: Optional[BaseException] = None,
+        traceback: Optional[TracebackType] = None,
+    ) -> None:
+        fcntl.fcntl(self.fd, fcntl.F_SETFL, self.orig_fl)
 
 
-
-class Input(ContextManager["Input"]):
+class KeyInput(ContextManager["KeyInput"]):
     """Keypress and control event generator"""
 
     def __init__(self) -> None:
@@ -36,12 +68,14 @@ class Input(ContextManager["Input"]):
 
         self.wakeup_read_fd: Optional[int] = None
         self.wakeup_write_fd: Optional[int] = None
+        self.readers = []
 
     # prospective: this could be useful for an external select loop
     def fileno(self) -> int:
         return self.in_stream.fileno()
-
-    def __enter__(self) -> "Input":
+    
+    def __enter__(self) -> "KeyInput":
+        # with enter
         self.original_stty = termios.tcgetattr(self.in_stream)
         tty.setcbreak(self.in_stream, termios.TCSANOW)
 
@@ -60,12 +94,7 @@ class Input(ContextManager["Input"]):
         value: Optional[BaseException] = None,
         traceback: Optional[TracebackType] = None,
     ) -> None:
-        if (
-            self.sigint_event
-            and is_main_thread()
-            and self.orig_sigint_handler is not None
-        ):
-            signal.signal(signal.SIGINT, self.orig_sigint_handler)
+        # with exit
         if is_main_thread():
             signal.set_wakeup_fd(-1)
             if self.wakeup_read_fd is not None:
@@ -74,32 +103,25 @@ class Input(ContextManager["Input"]):
                 os.close(self.wakeup_write_fd)
         termios.tcsetattr(self.in_stream, termios.TCSANOW, self.original_stty)
 
-    def sigint_handler(
-        self, signum: Union[signal.Signals, int], frame: Optional[FrameType]
-    ) -> None:
-        self.sigints.append(events.SigIntEvent())
-
-    def __iter__(self) -> "Input":
+    def __iter__(self) -> "KeyInput":
         return self
 
-    def __next__(self) -> Union[None, str, events.Event]:
+    def __next__(self):
         return self.send(None)
 
     def unget_bytes(self, string: bytes) -> None:
         """Adds bytes to be internal buffer to be read
 
         This method is for reporting bytes from an in_stream read
-        not initiated by this Input object"""
+        not initiated by this KeyInput object"""
 
         self.unprocessed_bytes.extend(string[i : i + 1] for i in range(len(string)))
 
-    def _wait_for_read_ready_or_timeout(
-        self, timeout: Union[float, int, None]
-    ) -> Tuple[bool, Optional[Union[events.Event, str]]]:
+    def _wait_for_read_ready_or_timeout(self,timeout):
         """Returns tuple of whether stdin is ready to read and an event.
 
         If an event is returned, that event is more pressing than reading
-        bytes on stdin to create a keyboard input event.
+        bytes on stdin to create a keyboard KeyInput event.
         If stdin is ready, either there are bytes to read or a SIGTSTP
         triggered by dsusp has been received"""
         remaining_timeout = timeout
@@ -133,33 +155,24 @@ class Input(ContextManager["Input"]):
                         continue
                     else:
                         continue
-
             except OSError:
-                if self.sigints:
-                    return False, self.sigints.pop()
                 if remaining_timeout is not None:
                     remaining_timeout = max(remaining_timeout - (time.time() - t0), 0)
 
-    def send(
-        self, timeout: Optional[Union[float, None]] = None
-    ) -> Union[None, str, events.Event]:
+    def send(self, timeout):
         """Returns an event or None if no events occur before timeout."""
-        if self.sigint_event and is_main_thread():
-            with ReplacedSigIntHandler(self.sigint_handler):
-                return self._send(timeout)
-        else:
-            return self._send(timeout)
+        return self._send(timeout)
 
-    def _send(self, timeout: Union[float, int, None]) -> Union[None, str, events.Event]:
+    def _send(self, timeout: Union[float, int, None]):
         def find_key() -> Optional[str]:
             """Returns keypress identified by adding unprocessed bytes or None"""
             current_bytes = []
+            # print(self.unprocessed_bytes)
             while self.unprocessed_bytes:
                 current_bytes.append(self.unprocessed_bytes.pop(0))
-                e = events.get_key(
+                e = get_key(
                     current_bytes,
                     getpreferredencoding(),
-                    keynames=self.keynames,
                     full=len(self.unprocessed_bytes) == 0,
                 )
                 if e is not None:
@@ -168,32 +181,9 @@ class Input(ContextManager["Input"]):
                 raise ValueError("Couldn't identify key sequence: %r" % current_bytes)
             return None
 
-        if self.sigints:
-            return self.sigints.pop()
-        if self.queued_events:
-            return self.queued_events.pop(0)
-        if self.queued_interrupting_events:
-            return self.queued_interrupting_events.pop(0)
+        time_until_check = timeout
 
-        if self.queued_scheduled_events:
-            self.queued_scheduled_events.sort()
-            when, _ = self.queued_scheduled_events[0]
-            if when < time.time():
-                logger.debug(
-                    "popping an event! %r %r",
-                    self.queued_scheduled_events[0],
-                    self.queued_scheduled_events[1:],
-                )
-                return self.queued_scheduled_events.pop(0)[1]
-            else:
-                time_until_check = min(
-                    max(0, when - time.time()),
-                    timeout if timeout is not None else sys.maxsize,
-                )  # type: Union[float, int, None]
-        else:
-            time_until_check = timeout
-
-        # try to find an already pressed key from prev input
+        # try to find an already pressed key from prev KeyInput
         e = find_key()
         if e is not None:
             return e
@@ -203,16 +193,6 @@ class Input(ContextManager["Input"]):
         )
         if event:
             return event
-        if (
-            self.queued_scheduled_events and when < time.time()
-        ):  # when should always be defined
-            # because queued_scheduled_events should not be modified during this time
-            logger.debug(
-                "popping an event! %r %r",
-                self.queued_scheduled_events[0],
-                self.queued_scheduled_events[1:],
-            )
-            return self.queued_scheduled_events.pop(0)[1]
         if not stdin_ready_for_read:
             return None
 
@@ -222,21 +202,9 @@ class Input(ContextManager["Input"]):
             # when SIGTSTP was send by dsusp
             return None
 
-        if self.paste_threshold is not None and num_bytes > self.paste_threshold:
-            paste = events.PasteEvent()
-            while True:
-                if len(self.unprocessed_bytes) < events.MAX_KEYPRESS_SIZE:
-                    self._nonblocking_read()  # may need to read to get the rest of a keypress
-                e = find_key()
-                if e is None:
-                    return paste
-                else:
-                    paste.events.append(e)
-        else:
-            print("!")
-            e = find_key()
-            assert e is not None
-            return e
+        e = find_key()
+        assert e is not None
+        return e
 
     def _nonblocking_read(self) -> int:
         """Returns the number of characters read and adds them to self.unprocessed_bytes"""
@@ -250,52 +218,4 @@ class Input(ContextManager["Input"]):
                 return len(data)
             else:
                 return 0
-
-    def event_trigger(
-        self, event_type: Union[Type[events.Event], Callable[..., None]]
-    ) -> Callable[..., None]:
-        """Returns a callback that creates events.
-
-        Returned callback function will add an event of type event_type
-        to a queue which will be checked the next time an event is requested."""
-
-        def callback(**kwargs: Any) -> None:
-            self.queued_events.append(event_type(**kwargs))  # type: ignore
-
-        return callback
-
-    def scheduled_event_trigger(
-        self, event_type: Type[events.ScheduledEvent]
-    ) -> Callable[[float], None]:
-        """Returns a callback that schedules events for the future.
-
-        Returned callback function will add an event of type event_type
-        to a queue which will be checked the next time an event is requested."""
-
-        def callback(when: float) -> None:
-            self.queued_scheduled_events.append((when, event_type(when=when)))
-
-        return callback
-
-    def threadsafe_event_trigger(
-        self, event_type: Union[Type[events.Event], Callable[..., None]]
-    ) -> Callable[..., None]:
-        """Returns a callback to creates events, interrupting current event requests.
-
-        Returned callback function will create an event of type event_type
-        which will interrupt an event request if one
-        is concurrently occurring, otherwise adding the event to a queue
-        that will be checked on the next event request."""
-        readfd, writefd = os.pipe()
-        self.readers.append(readfd)
-
-        def callback(**kwargs: Any) -> None:
-            # TODO use a threadsafe queue for this
-            self.queued_interrupting_events.append(event_type(**kwargs))  # type: ignore
-            logger.debug(
-                "added event to events list %r", self.queued_interrupting_events
-            )
-            os.write(writefd, b"interrupting event!")
-
-        return callback
 

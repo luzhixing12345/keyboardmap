@@ -1,6 +1,5 @@
 
 from keyinput import KeyInput
-from keymap import KEYMAP
 
 def main():
     with KeyInput() as input_generator:
