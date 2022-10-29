@@ -5,6 +5,8 @@
 
 non-blocking keyboard input map
 
+![intro](asd81h12.gif)
+
 ## Statement Before View Code
 
 The code in this repo is **NOT CREATED BY MYSELF**, which most comes from [curtises](https://github.com/bpython/curtsies) with unrelated code optimization and simplification for reading.
@@ -46,6 +48,10 @@ CURSES_NAMES = {
 ```
 
 CURSES_NAMES has higher priority than _CURTSIES_NAMES
+
+## Implementation keypoint
+
+see function `_wait_for_read_ready_or_timeout` and `_nonblocking_read` in keyinput.py
 
 ## Reference
 
